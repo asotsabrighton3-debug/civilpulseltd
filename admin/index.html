@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>CivicPulse | Management Dashboard</title>
+  <link rel="stylesheet" href="./admin.css">
+</head>
+<body>
+  <!-- Sign-in, invite acceptance and password reset -->
+  <main id="authView" class="auth" hidden>
+    <div class="auth-card">
+      <p class="eyebrow">CivicPulse Ltd</p>
+      <h1>Management sign in</h1>
+
+      <form id="loginForm" class="stack">
+        <label>Email <input name="email" type="email" autocomplete="email" required></label>
+        <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit" class="btn primary">Sign in</button>
+        <button type="button" id="forgotBtn" class="link">Forgot password?</button>
+      </form>
+
+      <form id="passwordForm" class="stack" hidden>
+        <p id="passwordIntro">Choose a password for your account.</p>
+        <label>New password <input name="password" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button type="submit" class="btn primary">Save password</button>
+      </form>
+
+      <p id="authMessage" class="message" role="status"></p>
+      <a href="/" class="back">&larr; Back to public site</a>
+    </div>
+  </main>
+
+  <!-- Signed in but without a management role -->
+  <main id="deniedView" class="auth" hidden>
+    <div class="auth-card">
+      <h1>No management access</h1>
+      <p>You are signed in as <strong id="deniedEmail"></strong>, but this account has not been given the
+        <code>admin</code> or <code>manager</code> role. Ask a site administrator to grant access.</p>
+      <button type="button" class="btn" data-logout>Sign out</button>
+    </div>
+  </main>
+
+  <!-- Dashboard -->
+  <div id="dashboardView" hidden>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">CP</span>
+        <div>
+          <strong>CivicPulse</strong>
+          <span>Management Dashboard</span>
+        </div>
+      </div>
+      <div class="user">
+        <span id="userEmail"></span>
+        <button type="button" class="btn ghost" id="refreshBtn">Refresh</button>
+        <button type="button" class="btn ghost" data-logout>Sign out</button>
+      </div>
+    </header>
+
+    <main class="content">
+      <section class="kpis" aria-label="Report summary">
+        <div class="kpi"><span>Total reports</span><strong id="kpiTotal">0</strong></div>
+        <div class="kpi"><span>Awaiting action</span><strong id="kpiReceived">0</strong></div>
+        <div class="kpi"><span>In progress</span><strong id="kpiProgress">0</strong></div>
+        <div class="kpi"><span>Resolved</span><strong id="kpiResolved">0</strong><small id="kpiRate"></small></div>
+        <div class="kpi alert"><span>Urgent &amp; open</span><strong id="kpiUrgent">0</strong></div>
+      </section>
+
+      <section class="panels">
+        <div class="panel">
+          <h2>Open reports by category</h2>
+          <div id="categoryChart" class="bars"></div>
+        </div>
+        <div class="panel">
+          <h2>Reports by status</h2>
+          <div id="statusChart" class="bars"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="table-head">
+          <h2>All reports</h2>
+          <div class="filters">
+            <input id="search" type="search" placeholder="Search title, location, reference..." aria-label="Search reports">
+            <select id="filterStatus" aria-label="Filter by status"><option value="">All statuses</option></select>
+            <select id="filterCategory" aria-label="Filter by category"><option value="">All categories</option></select>
+            <select id="filterPriority" aria-label="Filter by priority"><option value="">All priorities</option></select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Reference</th><th>Issue</th><th>Category</th><th>Location</th>
+                <th>Priority</th><th>Status</th><th>Assigned to</th><th>Submitted</th>
+              </tr>
+            </thead>
+            <tbody id="reportRows"></tbody>
+          </table>
+          <p id="emptyState" class="empty" hidden>No reports match these filters.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Report detail drawer -->
+  <div id="drawerBackdrop" class="backdrop" hidden></div>
+  <aside id="drawer" class="drawer" aria-labelledby="drawerTitle" hidden>
+    <div class="drawer-head">
+      <div>
+        <p class="eyebrow" id="drawerRef"></p>
+        <h2 id="drawerTitle"></h2>
+      </div>
+      <button type="button" class="btn ghost" id="closeDrawer" aria-label="Close">&times;</button>
+    </div>
+    <dl class="meta">
+      <dt>Category</dt><dd id="drawerCategory"></dd>
+      <dt>Location</dt><dd id="drawerLocation"></dd>
+      <dt>Submitted</dt><dd id="drawerCreated"></dd>
+      <dt>Last updated</dt><dd id="drawerUpdated"></dd>
+    </dl>
+    <h3>Description</h3>
+    <p id="drawerDescription" class="description"></p>
+    <img id="drawerPhoto" alt="Photo attached to the report" hidden>
+
+    <form id="drawerForm" class="stack">
+      <div class="row">
+        <label>Status <select name="status" id="editStatus"></select></label>
+        <label>Priority <select name="priority" id="editPriority"></select></label>
+      </div>
+      <label>Assigned to <input name="assignedTo" id="editAssigned" placeholder="Team or staff member"></label>
+      <label>Internal notes <textarea name="managementNotes" id="editNotes" rows="5" placeholder="Only visible to management"></textarea></label>
+      <div class="actions">
+        <button type="submit" class="btn primary">Save changes</button>
+        <button type="button" class="btn danger" id="deleteBtn">Delete report</button>
+      </div>
+      <p id="drawerMessage" class="message" role="status"></p>
+    </form>
+  </aside>
+
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>

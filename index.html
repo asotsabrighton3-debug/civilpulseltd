@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CivicPulse | Community Tracker</title>
+  <style>
+/* CivicPulse city wallpaper */
+body {
+    background-image:
+        linear-gradient(
+            rgba(8, 24, 42, 0.68),
+            rgba(8, 24, 42, 0.68)
+        ),
+        url("https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=2000&q=85");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    min-height: 100vh;
+}
+
+/* Center the main title */
+h1 {
+    text-align: center;
+}
+</style>
+</head>
+<body>
+  <h1>WELCOME TO CIVILPULSE LTD</h1>
+<p>BROUGHT UP YOU BY BRIGHTON TECHNICAL SOLUTIONS TO HELP IN COMMUNITY DEVELOPMENT COUNTRYWIDE</p>
+  <p>Report community issues. Track progress. Build better communities.</p>
+<section id="report-issue" style="max-width:600px;margin:30px auto;padding:20px;border:1px solid #ddd;border-radius:12px;font-family:Arial,sans-serif;">
+  <h2>Report a Community Issue</h2>
+  <p>Help us identify problems and improve our community.</p>
+
+  <form id="issueForm">
+    <label for="issueTitle">Issue title</label><br>
+    <input id="issueTitle" name="title" type="text" placeholder="e.g. Broken streetlight" required style="width:100%;padding:10px;margin:8px 0 15px;box-sizing:border-box;">
+
+    <label for="issueCategory">Category</label><br>
+    <select id="issueCategory" name="category" required style="width:100%;padding:10px;margin:8px 0 15px;box-sizing:border-box;">
+      <option value="">Select a category</option>
+      <option>Roads</option>
+      <option>Water</option>
+      <option>Garbage collection</option>
+      <option>Street lighting</option>
+      <option>Public safety</option>
+      <option>Other</option>
+    </select>
+
+    <label for="issueLocation">Location</label><br>
+    <input id="issueLocation" name="location" type="text" placeholder="Enter the area or landmark" required style="width:100%;padding:10px;margin:8px 0 15px;box-sizing:border-box;">
+
+    <label for="issueDescription">Description</label><br>
+    <textarea id="issueDescription" name="description" placeholder="Describe the problem..." required rows="4" style="width:100%;padding:10px;margin:8px 0 15px;box-sizing:border-box;"></textarea>
+<div style="margin: 16px 0;">
+  <label for="issuePhoto">Attach a photo (optional)</label>
+  <input
+    id="issuePhoto"
+    name="photo"
+    type="file"
+    accept="image/*"
+    style="display: block; margin-top: 8px;"
+  >
+
+  <img
+    id="photoPreview"
+    alt="Preview of selected report photo"
+    style="display: none; max-width: 100%; max-height: 250px; margin-top: 12px; border-radius: 8px;"
+  >
+</div>
+    <button type="submit" style="padding:12px 20px;background:#087f5b;color:white;border:0;border-radius:6px;cursor:pointer;">Submit Report</button>
+    <p id="issueMessage" role="status"></p>
+  </form>
+</section>
+<section id="my-reports" style="max-width:600px;margin:30px auto;padding:20px;border:1px solid #ddd;border-radius:12px;font-family:Arial,sans-serif;">
+  <h2>My Reports</h2>
+  <p>Track the community issues you have submitted from this device. Status updates come from the CivicPulse management team.</p>
+  <div style="margin-bottom: 12px;">
+  <input
+    id="reportSearch"
+    type="search"
+    placeholder="Search by report title or location..."
+    aria-label="Search reports"
+    style="width:100%;padding:10px;margin-bottom:8px;box-sizing:border-box;"
+  >
+
+  <select
+    id="reportStatusFilter"
+    aria-label="Filter reports by status"
+    style="width:100%;padding:10px;box-sizing:border-box;"
+  >
+    <option value="All">All statuses</option>
+    <option value="Received">Received</option>
+    <option value="In Progress">In Progress</option>
+    <option value="Resolved">Resolved</option>
+    <option value="Rejected">Rejected</option>
+  </select>
+</div>
+  <div id="reportsList">Loading reports...</div>
+</section>
+
+<script>
+// Identity emails (invites, password resets) link to the site root; forward them to the management sign-in.
+if (/(invite|recovery|confirmation)_token=/.test(location.hash)) {
+  location.replace("/admin/" + location.hash);
+}
+
+const TOKENS_KEY = "civicPulseReportTokens";
+const getTokens = () => JSON.parse(localStorage.getItem(TOKENS_KEY) || "[]");
+let myReports = [];
+
+document.getElementById("issueForm").addEventListener("submit", async function(event) {
+  event.preventDefault();
+
+  const message = document.getElementById("issueMessage");
+  const button = this.querySelector("button[type=submit]");
+  button.disabled = true;
+  message.textContent = "Submitting your report...";
+
+  try {
+    const response = await fetch("/api/reports", { method: "POST", body: new FormData(this) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Something went wrong.");
+
+    localStorage.setItem(TOKENS_KEY, JSON.stringify([...getTokens(), result.trackingToken]));
+    message.textContent = "Thank you! Your report has been sent to the management team. Reference: " + result.reference;
+
+    this.reset();
+    photoPreview.removeAttribute("src");
+    photoPreview.style.display = "none";
+    loadReports();
+  } catch (error) {
+    message.textContent = "Could not submit your report: " + error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+async function loadReports() {
+  const tokens = getTokens();
+  if (tokens.length === 0) {
+    myReports = [];
+    displayReports();
+    return;
+  }
+  try {
+    const response = await fetch("/api/reports?tokens=" + encodeURIComponent(tokens.join(",")));
+    if (!response.ok) throw new Error();
+    myReports = await response.json();
+    myReports.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    displayReports();
+  } catch {
+    document.getElementById("reportsList").textContent = "Could not load your reports. Please try again later.";
+  }
+}
+
+function displayReports() {
+  const list = document.getElementById("reportsList");
+  list.replaceChildren();
+
+  if (myReports.length === 0) {
+    list.textContent = "You have not submitted any reports yet.";
+    return;
+  }
+
+  const searchText = (
+    document.getElementById("reportSearch")?.value || ""
+  ).toLowerCase().trim();
+
+  const selectedStatus =
+    document.getElementById("reportStatusFilter")?.value || "All";
+
+  const filteredReports = myReports.filter((report) => {
+    const matchesSearch =
+      (report.title || "").toLowerCase().includes(searchText) ||
+      (report.location || "").toLowerCase().includes(searchText);
+
+    const matchesStatus =
+      selectedStatus === "All" || report.status === selectedStatus;
+
+    return matchesSearch && matchesStatus;
+  });
+
+  if (filteredReports.length === 0) {
+    list.textContent = "No reports match your search.";
+    return;
+  }
+
+  filteredReports.forEach((report) => {
+    const card = document.createElement("article");
+    card.style.cssText =
+      "padding:12px;margin:12px 0;border:1px solid #ddd;border-radius:8px";
+
+    const heading = document.createElement("h3");
+    heading.textContent = report.title || "Untitled report";
+
+    const details = document.createElement("p");
+    details.textContent =
+      "Category: " + (report.category || "Other") +
+      " | Location: " + (report.location || "Not provided");
+
+    const status = document.createElement("p");
+    status.textContent = "Status: " + report.status;
+
+    const reference = document.createElement("p");
+    reference.textContent =
+      "Reference: " + report.reference +
+      " | Submitted: " + new Date(report.createdAt).toLocaleDateString();
+
+    card.append(heading, details, status, reference);
+    list.appendChild(card);
+  });
+}
+document.getElementById("reportSearch").addEventListener("input", displayReports);
+
+document.getElementById("reportStatusFilter").addEventListener("change", displayReports);
+loadReports();
+const issuePhotoInput = document.getElementById("issuePhoto");
+const photoPreview = document.getElementById("photoPreview");
+
+issuePhotoInput.addEventListener("change", function () {
+  const file = this.files[0];
+
+  if (!file) {
+    photoPreview.removeAttribute("src");
+    photoPreview.style.display = "none";
+    return;
+  }
+
+  if (!file.type.startsWith("image/")) {
+    alert("Please select an image file.");
+    this.value = "";
+    photoPreview.removeAttribute("src");
+    photoPreview.style.display = "none";
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    alert("Please choose an image smaller than 5 MB.");
+    this.value = "";
+    photoPreview.removeAttribute("src");
+    photoPreview.style.display = "none";
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function (event) {
+    photoPreview.src = event.target.result;
+    photoPreview.style.display = "block";
+  };
+
+  reader.readAsDataURL(file);
+});
+</script>
+<footer style="text-align:center;margin:40px 0 24px;font-family:Arial,sans-serif;">
+  <a href="/admin/" style="color:#cfe8ff;">Management login</a>
+</footer>
+</body>
+</html>
